@@ -58,16 +58,26 @@ npx -y github:GrossoRoberto/tempo-mcp
 
 | Tool | Description |
 |------|-------------|
-| `ora_attuale` | Current date and time in an IANA timezone (default: PC timezone). Includes ISO 8601, Unix timestamp, day of week. |
-| `durata_sessione` | Time elapsed since server startup (≈ conversation start), in human-readable and numeric form. |
-| `converti_fuso_orario` | Converts a date/time from one timezone to another (handles DST). |
-| `differenza_fusi` | Current time difference between two timezones (e.g. Rome vs Tokyo). |
+| `current_time` | Current date and time in an IANA timezone (default: PC timezone). Includes ISO 8601, Unix timestamp, day of week. |
+| `session_duration` | Time elapsed since server startup (≈ conversation start), in human-readable and numeric form. |
+| `convert_timezone` | Converts a date/time from one timezone to another (handles DST). |
+| `timezone_difference` | Current time difference between two timezones (e.g. Rome vs Tokyo). |
 
 ## Resource
 
 | URI | Description |
 |-----|-------------|
-| `tempo://adesso` | Current date/time (PC timezone) as JSON. Subscribable: the server notifies updates every 30s. |
+| `tempo://now` | Current date/time (PC timezone) as JSON. Subscribable: the server notifies updates every 30s. |
+
+## Compatibility
+
+| Harness | Status |
+|---------|--------|
+| [pi](https://github.com/earendil-works/pi-coding-agent) (pi-coding-agent) | ✅ **Tested end-to-end** via the bridge extension included in this repo |
+| Claude Desktop | ⚠️ Config documented, not yet tested |
+| Cursor / VS Code | ⚠️ Config documented, not yet tested |
+
+> **Note**: as of today tempo-mcp has been tested **only with pi-coding-agent**. The stdio transport is universal, so other MCP harnesses are expected to work — real-world verification is on the [roadmap](wiki/Roadmap.md). |
 
 ## Development
 
@@ -79,7 +89,7 @@ npm test        # protocol smoke test
 npm start       # start the server on stdio
 ```
 
-Project documentation (in Italian) lives in [`wiki/`](wiki/Home.md).
+Project documentation lives in the [`wiki/`](wiki/Home.md).
 
 ## License
 

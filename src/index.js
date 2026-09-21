@@ -1,23 +1,24 @@
 #!/usr/bin/env node
 /**
- * tempoMCP — Server MCP che dà agli LLM consapevolezza del tempo reale.
+ * tempo-mcp — MCP server that gives LLMs real-time awareness.
  *
- * Scopo: l'umano usa riferimenti temporali relativi ("ieri", "la settimana
- * scorsa") che per l'LLM significano poco. Questo server:
- *  1. istruisce l'LLM (campo `instructions`) a marcare OGNI risposta con il
- *     timestamp corrente nel formato YYYY/MM/DD HH:MM:SS (fuso del PC);
- *  2. espone la risorsa `tempo://adesso` con data/ora correnti, aggiornata
- *     via push ogni 30s per i client che la sottoscrivono;
- *  3. fornisce tool di supporto:
- *     - ora_attuale:            data/ora correnti in un fuso orario IANA
- *     - durata_sessione:        tempo trascorso dall'avvio del server
- *     - converti_fuso_orario:   converte una data/ora da un fuso all'altro
- *     - differenza_fusi:        differenza oraria tra due fusi in questo momento
+ * Purpose: humans use relative time references ("yesterday", "last week")
+ * that mean little to an LLM. This server:
+ *  1. instructs the LLM (via the `instructions` field) to prefix EVERY
+ *     response with the current timestamp in YYYY/MM/DD HH:MM:SS format
+ *     (PC timezone);
+ *  2. exposes the `tempo://now` resource with the current date/time,
+ *     push-updated every 30s for subscribed clients;
+ *  3. provides supporting tools:
+ *     - current_time:        current date/time in an IANA timezone
+ *     - session_duration:    time elapsed since server startup
+ *     - convert_timezone:    converts a date/time from one timezone to another
+ *     - timezone_difference: current time difference between two timezones
  *
- * Così "la decisione presa ieri" diventa un intervallo di timestamp concreto
- * che l'LLM può ritrovare nella conversazione.
+ * This way "the decision we made yesterday" becomes a concrete timestamp
+ * interval the LLM can find in the conversation.
  *
- * Trasporto: stdio (compatibile con Claude Desktop, pi, ecc.)
+ * Transport: stdio (compatible with Claude Desktop, pi, etc.)
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -28,16 +29,16 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-// Istante di avvio del server ≈ inizio della sessione/conversazione
+// Server startup instant ≈ start of the session/conversation
 const SESSION_START = Date.now();
 
-const GIORNI_IT = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
-const MESI_IT = [
-  "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
-  "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre",
+const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
-/** Verifica che un fuso orario IANA sia valido. */
+/** Checks that an IANA timezone is valid. */
 function isValidTimeZone(tz) {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
@@ -47,8 +48,8 @@ function isValidTimeZone(tz) {
   }
 }
 
-/** Estrae le componenti data/ora di un istante in un dato fuso orario. */
-function partiOrario(date, timeZone) {
+/** Extracts date/time components of an instant in a given timezone. */
+function timeParts(date, timeZone) {
   const dtf = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -60,65 +61,65 @@ function partiOrario(date, timeZone) {
   const p = Object.fromEntries(
     dtf.formatToParts(date).filter((x) => x.type !== "literal").map((x) => [x.type, x.value])
   );
-  const giorniEn = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const daysEn = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   return {
-    anno: Number(p.year),
-    mese: Number(p.month),
-    giorno: Number(p.day),
-    ora: Number(p.hour),
-    minuto: Number(p.minute),
-    secondo: Number(p.second),
-    giornoSettimana: giorniEn[p.weekday],
-    offset: p.timeZoneName, // es. "GMT+2"
+    year: Number(p.year),
+    month: Number(p.month),
+    day: Number(p.day),
+    hour: Number(p.hour),
+    minute: Number(p.minute),
+    second: Number(p.second),
+    weekday: daysEn[p.weekday],
+    offset: p.timeZoneName, // e.g. "GMT+2"
   };
 }
 
-/** Offset in minuti di un fuso orario rispetto a UTC in un dato istante. */
-function offsetMinuti(date, timeZone) {
-  const c = partiOrario(date, timeZone);
-  const asUtc = Date.UTC(c.anno, c.mese - 1, c.giorno, c.ora, c.minuto, c.secondo);
+/** Offset in minutes of a timezone from UTC at a given instant. */
+function offsetMinutes(date, timeZone) {
+  const c = timeParts(date, timeZone);
+  const asUtc = Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute, c.second);
   return Math.round((asUtc - Math.floor(date.getTime() / 1000) * 1000) / 60000);
 }
 
-function formatoOffset(minuti) {
-  const segno = minuti >= 0 ? "+" : "-";
-  const a = Math.abs(minuti);
-  return `${segno}${String(Math.floor(a / 60)).padStart(2, "0")}:${String(a % 60).padStart(2, "0")}`;
+function formatOffset(minutes) {
+  const sign = minutes >= 0 ? "+" : "-";
+  const a = Math.abs(minutes);
+  return `${sign}${String(Math.floor(a / 60)).padStart(2, "0")}:${String(a % 60).padStart(2, "0")}`;
 }
 
-/** Descrizione completa di un istante in un fuso orario. */
-function descriviIstante(date, timeZone) {
-  const c = partiOrario(date, timeZone);
-  const off = offsetMinuti(date, timeZone);
-  const data = `${c.anno}-${String(c.mese).padStart(2, "0")}-${String(c.giorno).padStart(2, "0")}`;
-  const ora = `${String(c.ora).padStart(2, "0")}:${String(c.minuto).padStart(2, "0")}:${String(c.secondo).padStart(2, "0")}`;
+/** Full description of an instant in a timezone. */
+function describeInstant(date, timeZone) {
+  const c = timeParts(date, timeZone);
+  const off = offsetMinutes(date, timeZone);
+  const day = `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`;
+  const time = `${String(c.hour).padStart(2, "0")}:${String(c.minute).padStart(2, "0")}:${String(c.second).padStart(2, "0")}`;
   return {
-    iso_locale: `${data}T${ora}${formatoOffset(off)}`,
-    data_leggibile: `${GIORNI_IT[c.giornoSettimana]} ${c.giorno} ${MESI_IT[c.mese - 1]} ${c.anno}`,
-    ora_leggibile: ora,
-    fuso_orario: timeZone,
-    offset_utc: formatoOffset(off),
+    local_iso: `${day}T${time}${formatOffset(off)}`,
+    readable_date: `${DAYS_EN[c.weekday]}, ${MONTHS_EN[c.month - 1]} ${c.day}, ${c.year}`,
+    readable_time: time,
+    timezone: timeZone,
+    utc_offset: formatOffset(off),
     timestamp_unix: Math.floor(date.getTime() / 1000),
     timestamp_unix_ms: date.getTime(),
   };
 }
 
-/** Formatta una durata in ms in forma leggibile italiana. */
-function formatoDurata(ms) {
+/** Formats a duration in ms into human-readable English. */
+function formatDuration(ms) {
   const s = Math.floor(ms / 1000);
-  const parti = [];
-  const giorni = Math.floor(s / 86400);
-  const ore = Math.floor((s % 86400) / 3600);
-  const minuti = Math.floor((s % 3600) / 60);
-  const secondi = s % 60;
-  if (giorni) parti.push(`${giorni} ${giorni === 1 ? "giorno" : "giorni"}`);
-  if (ore) parti.push(`${ore} ${ore === 1 ? "ora" : "ore"}`);
-  if (minuti) parti.push(`${minuti} ${minuti === 1 ? "minuto" : "minuti"}`);
-  if (secondi || parti.length === 0) parti.push(`${secondi} ${secondi === 1 ? "secondo" : "secondi"}`);
-  return parti.join(", ");
+  const parts = [];
+  const days = Math.floor(s / 86400);
+  const hours = Math.floor((s % 86400) / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  if (days) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+  if (hours) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+  if (minutes) parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
+  if (seconds || parts.length === 0) parts.push(`${seconds} ${seconds === 1 ? "second" : "seconds"}`);
+  return parts.join(", ");
 }
 
-function testo(obj) {
+function text(obj) {
   return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
 }
 
@@ -126,18 +127,18 @@ function testo(obj) {
 // Server
 // ---------------------------------------------------------------------------
 
-const URI_ADESSO = "tempo://adesso";
-const INTERVALLO_PUSH_MS = 30_000;
+const URI_NOW = "tempo://now";
+const PUSH_INTERVAL_MS = 30_000;
 
-/** Istruzioni inviate al client MCP alla connessione: è il meccanismo che
- *  rende automatico il marcamento temporale di ogni risposta dell'LLM. */
-const ISTRUZIONI = `Hai accesso al tempo reale tramite il server MCP "tempo-mcp". Segui SEMPRE queste regole:
+/** Instructions sent to the MCP client on connection: this is the mechanism
+ *  that makes timestamping of every LLM response automatic. */
+const INSTRUCTIONS = `You have access to real time through the MCP server "tempo-mcp". ALWAYS follow these rules:
 
-1. MARCATURA TEMPORALE: inizia OGNI tua risposta con il timestamp corrente nel formato YYYY/MM/DD HH:MM:SS (es. 2026/09/21 17:05:42), usando il fuso orario del PC dell'utente. Ottieni l'ora dalla risorsa ${URI_ADESSO} (se disponibile in contesto) oppure chiamando il tool ora_attuale.
+1. TIMESTAMPING: start EVERY response with the current timestamp in YYYY/MM/DD HH:MM:SS format (e.g. 2026/09/21 17:05:42), using the user's PC timezone. Get the time from the ${URI_NOW} resource (if available in context) or by calling the current_time tool.
 
-2. RIFERIMENTI TEMPORALI RELATIVI: quando l'utente usa espressioni come "ieri", "la settimana scorsa", "qualche giorno fa", "l'ultima volta" (nella lingua della conversazione), traducile in date/intervalli assoluti basandoti sull'ora corrente, e usali per interpretare i timestamp presenti nella conversazione (es. "il codice di ieri" = i messaggi marcati con la data di ieri).
+2. RELATIVE TIME REFERENCES: when the user uses expressions like "yesterday", "last week", "a few days ago", "last time" (in the conversation language), translate them into absolute dates/intervals based on the current time, and use them to interpret timestamps in the conversation (e.g. "yesterday's code" = messages stamped with yesterday's date).
 
-3. ATTENDIBILITÀ: non stimare mai l'ora a memoria. La data del tuo training NON è la data attuale: usa sempre il valore fornito da questo server, che viene aggiornato periodicamente.`;
+3. RELIABILITY: never estimate the time from memory. Your training date is NOT the current date: always use the value provided by this server, which is updated periodically.`;
 
 const server = new McpServer(
   {
@@ -148,153 +149,153 @@ const server = new McpServer(
     capabilities: {
       resources: { subscribe: true },
     },
-    instructions: ISTRUZIONI,
+    instructions: INSTRUCTIONS,
   }
 );
 
 server.registerTool(
-  "ora_attuale",
+  "current_time",
   {
-    title: "Ora attuale",
+    title: "Current time",
     description:
-      "Restituisce la data e l'ora correnti (tempo reale) in un fuso orario IANA. " +
-      "Se non specificato, usa il fuso orario del sistema. " +
-      "Utile per sapere 'che ore sono adesso' durante la conversazione.",
+      "Returns the current date and time (real time) in an IANA timezone. " +
+      "If not specified, uses the system timezone. " +
+      "Useful to know 'what time is it now' during the conversation.",
     inputSchema: {
-      fuso_orario: z
+      timezone: z
         .string()
         .optional()
-        .describe("Fuso orario IANA, es. 'Europe/Rome', 'America/New_York', 'UTC'"),
+        .describe("IANA timezone, e.g. 'Europe/Rome', 'America/New_York', 'UTC'"),
     },
   },
-  async ({ fuso_orario }) => {
-    const tz = fuso_orario ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  async ({ timezone }) => {
+    const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!isValidTimeZone(tz)) {
-      return { content: [{ type: "text", text: `Errore: fuso orario non valido: '${tz}'` }], isError: true };
+      return { content: [{ type: "text", text: `Error: invalid timezone: '${tz}'` }], isError: true };
     }
-    return testo(descriviIstante(new Date(), tz));
+    return text(describeInstant(new Date(), tz));
   }
 );
 
 server.registerTool(
-  "durata_sessione",
+  "session_duration",
   {
-    title: "Durata della sessione",
+    title: "Session duration",
     description:
-      "Restituisce quanto tempo è trascorso dall'avvio del server MCP (≈ inizio della conversazione), " +
-      "l'istante di inizio e l'istante attuale. Utile per percepire lo scorrere del tempo nel dialogo.",
+      "Returns how much time has elapsed since the MCP server started (≈ conversation start), " +
+      "the start instant and the current instant. Useful to perceive the flow of time in the dialogue.",
     inputSchema: {
-      fuso_orario: z
+      timezone: z
         .string()
         .optional()
-        .describe("Fuso orario IANA per gli istanti restituiti"),
+        .describe("IANA timezone for the returned instants"),
     },
   },
-  async ({ fuso_orario }) => {
-    const tz = fuso_orario ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  async ({ timezone }) => {
+    const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!isValidTimeZone(tz)) {
-      return { content: [{ type: "text", text: `Errore: fuso orario non valido: '${tz}'` }], isError: true };
+      return { content: [{ type: "text", text: `Error: invalid timezone: '${tz}'` }], isError: true };
     }
-    const adesso = new Date();
-    const trascorsoMs = adesso.getTime() - SESSION_START;
-    return testo({
-      trascorso_leggibile: formatoDurata(trascorsoMs),
-      trascorso_secondi: Math.floor(trascorsoMs / 1000),
-      trascorso_ms: trascorsoMs,
-      inizio_sessione: descriviIstante(new Date(SESSION_START), tz),
-      adesso: descriviIstante(adesso, tz),
+    const now = new Date();
+    const elapsedMs = now.getTime() - SESSION_START;
+    return text({
+      elapsed_readable: formatDuration(elapsedMs),
+      elapsed_seconds: Math.floor(elapsedMs / 1000),
+      elapsed_ms: elapsedMs,
+      session_start: describeInstant(new Date(SESSION_START), tz),
+      now: describeInstant(now, tz),
     });
   }
 );
 
 server.registerTool(
-  "converti_fuso_orario",
+  "convert_timezone",
   {
-    title: "Converti tra fusi orari",
+    title: "Convert between timezones",
     description:
-      "Converte una data/ora da un fuso orario di origine a uno di destinazione. " +
-      "La data/ora va indicata in formato ISO 8601 (es. '2025-06-15T14:30:00'), interpretata nel fuso di origine.",
+      "Converts a date/time from a source timezone to a destination timezone. " +
+      "The date/time must be in ISO 8601 format (e.g. '2025-06-15T14:30:00'), interpreted in the source timezone.",
     inputSchema: {
-      data_ora: z.string().describe("Data/ora ISO 8601 locale, es. '2025-06-15T14:30:00' o '2025-06-15 14:30'"),
-      da_fuso: z.string().describe("Fuso orario IANA di origine, es. 'Europe/Rome'"),
-      a_fuso: z.string().describe("Fuso orario IANA di destinazione, es. 'America/New_York'"),
+      datetime: z.string().describe("Local ISO 8601 date/time, e.g. '2025-06-15T14:30:00' or '2025-06-15 14:30'"),
+      from_timezone: z.string().describe("Source IANA timezone, e.g. 'Europe/Rome'"),
+      to_timezone: z.string().describe("Destination IANA timezone, e.g. 'America/New_York'"),
     },
   },
-  async ({ data_ora, da_fuso, a_fuso }) => {
-    for (const [tz, nome] of [[da_fuso, "da_fuso"], [a_fuso, "a_fuso"]]) {
+  async ({ datetime, from_timezone, to_timezone }) => {
+    for (const [tz, name] of [[from_timezone, "from_timezone"], [to_timezone, "to_timezone"]]) {
       if (!isValidTimeZone(tz)) {
-        return { content: [{ type: "text", text: `Errore: fuso orario non valido in ${nome}: '${tz}'` }], isError: true };
+        return { content: [{ type: "text", text: `Error: invalid timezone in ${name}: '${tz}'` }], isError: true };
       }
     }
-    // Interpreta la data/ora locale nel fuso di origine
-    const m = data_ora.trim().replace(" ", "T").match(
+    // Interpret the local date/time in the source timezone
+    const m = datetime.trim().replace(" ", "T").match(
       /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/
     );
     if (!m) {
       return {
-        content: [{ type: "text", text: `Errore: formato data/ora non riconosciuto: '${data_ora}'. Usa 'YYYY-MM-DDTHH:MM:SS'.` }],
+        content: [{ type: "text", text: `Error: unrecognized date/time format: '${datetime}'. Use 'YYYY-MM-DDTHH:MM:SS'.` }],
         isError: true,
       };
     }
     const [, Y, Mo, D, H = "00", Mi = "00", S = "00"] = m;
-    // Stima iniziale come se fosse UTC, poi corregge con l'offset reale del fuso (2 passaggi per i casi limite DST)
+    // Initial guess as if it were UTC, then correct with the real timezone offset (2 passes for DST edge cases)
     let guess = Date.UTC(+Y, +Mo - 1, +D, +H, +Mi, +S);
-    guess -= offsetMinuti(new Date(guess), da_fuso) * 60000;
-    guess = Date.UTC(+Y, +Mo - 1, +D, +H, +Mi, +S) - offsetMinuti(new Date(guess), da_fuso) * 60000;
-    const istante = new Date(guess);
-    return testo({
-      origine: descriviIstante(istante, da_fuso),
-      destinazione: descriviIstante(istante, a_fuso),
+    guess -= offsetMinutes(new Date(guess), from_timezone) * 60000;
+    guess = Date.UTC(+Y, +Mo - 1, +D, +H, +Mi, +S) - offsetMinutes(new Date(guess), from_timezone) * 60000;
+    const instant = new Date(guess);
+    return text({
+      source: describeInstant(instant, from_timezone),
+      destination: describeInstant(instant, to_timezone),
     });
   }
 );
 
 server.registerTool(
-  "differenza_fusi",
+  "timezone_difference",
   {
-    title: "Differenza tra fusi orari",
+    title: "Timezone difference",
     description:
-      "Calcola la differenza oraria (in ore) tra due fusi orari in questo momento, " +
-      "tenendo conto dell'ora legale.",
+      "Calculates the time difference (in hours) between two timezones right now, " +
+      "taking daylight saving time into account.",
     inputSchema: {
-      fuso_a: z.string().describe("Primo fuso orario IANA, es. 'Europe/Rome'"),
-      fuso_b: z.string().describe("Secondo fuso orario IANA, es. 'Asia/Tokyo'"),
+      timezone_a: z.string().describe("First IANA timezone, e.g. 'Europe/Rome'"),
+      timezone_b: z.string().describe("Second IANA timezone, e.g. 'Asia/Tokyo'"),
     },
   },
-  async ({ fuso_a, fuso_b }) => {
-    for (const tz of [fuso_a, fuso_b]) {
+  async ({ timezone_a, timezone_b }) => {
+    for (const tz of [timezone_a, timezone_b]) {
       if (!isValidTimeZone(tz)) {
-        return { content: [{ type: "text", text: `Errore: fuso orario non valido: '${tz}'` }], isError: true };
+        return { content: [{ type: "text", text: `Error: invalid timezone: '${tz}'` }], isError: true };
       }
     }
-    const adesso = new Date();
-    const offA = offsetMinuti(adesso, fuso_a);
-    const offB = offsetMinuti(adesso, fuso_b);
+    const now = new Date();
+    const offA = offsetMinutes(now, timezone_a);
+    const offB = offsetMinutes(now, timezone_b);
     const diff = offB - offA;
-    const ore = Math.abs(diff) / 60;
-    return testo({
-      fuso_a: { nome: fuso_a, offset_utc: formatoOffset(offA), ora_attuale: descriviIstante(adesso, fuso_a).ora_leggibile },
-      fuso_b: { nome: fuso_b, offset_utc: formatoOffset(offB), ora_attuale: descriviIstante(adesso, fuso_b).ora_leggibile },
-      differenza_ore: diff / 60,
-      descrizione:
+    const hours = Math.abs(diff) / 60;
+    return text({
+      timezone_a: { name: timezone_a, utc_offset: formatOffset(offA), current_time: describeInstant(now, timezone_a).readable_time },
+      timezone_b: { name: timezone_b, utc_offset: formatOffset(offB), current_time: describeInstant(now, timezone_b).readable_time },
+      difference_hours: diff / 60,
+      description:
         diff === 0
-          ? `${fuso_a} e ${fuso_b} hanno la stessa ora`
-          : `${fuso_b} è ${ore} ${ore === 1 ? "ora" : "ore"} ${diff > 0 ? "avanti" : "indietro"} rispetto a ${fuso_a}`,
+          ? `${timezone_a} and ${timezone_b} have the same time`
+          : `${timezone_b} is ${hours} ${hours === 1 ? "hour" : "hours"} ${diff > 0 ? "ahead of" : "behind"} ${timezone_a}`,
     });
   }
 );
 
 // ---------------------------------------------------------------------------
-// Risorsa tempo://adesso — orologio in contesto, con aggiornamenti push
+// Resource tempo://now — clock in context, with push updates
 // ---------------------------------------------------------------------------
 
 server.registerResource(
-  "adesso",
-  URI_ADESSO,
+  "now",
+  URI_NOW,
   {
-    title: "Data e ora correnti",
+    title: "Current date and time",
     description:
-      "Data e ora correnti (fuso orario del PC). Il server invia una notifica di aggiornamento ogni 30 secondi ai client sottoscritti.",
+      "Current date and time (PC timezone). The server sends an update notification every 30 seconds to subscribed clients.",
     mimeType: "application/json",
   },
   async (uri) => {
@@ -304,38 +305,38 @@ server.registerResource(
         {
           uri: uri.href,
           mimeType: "application/json",
-          text: JSON.stringify(descriviIstante(new Date(), tz), null, 2),
+          text: JSON.stringify(describeInstant(new Date(), tz), null, 2),
         },
       ],
     };
   }
 );
 
-// Gestione sottoscrizioni: l'SDK non le implementa automaticamente lato server
-const iscritti = new Set();
+// Subscription handling: the SDK does not implement them automatically server-side
+const subscribers = new Set();
 server.server.setRequestHandler(SubscribeRequestSchema, async (req) => {
-  iscritti.add(req.params.uri);
+  subscribers.add(req.params.uri);
   return {};
 });
 server.server.setRequestHandler(UnsubscribeRequestSchema, async (req) => {
-  iscritti.delete(req.params.uri);
+  subscribers.delete(req.params.uri);
   return {};
 });
 
-// Avvio
+// Startup
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-// Push periodico dell'ora aggiornata ai client sottoscritti
-const timerPush = setInterval(() => {
-  if (iscritti.has(URI_ADESSO)) {
+// Periodic push of the updated time to subscribed clients
+const pushTimer = setInterval(() => {
+  if (subscribers.has(URI_NOW)) {
     void server.server
       .notification({
         method: "notifications/resources/updated",
-        params: { uri: URI_ADESSO },
+        params: { uri: URI_NOW },
       })
-      .catch(() => {}); // client disconnesso: ignora
+      .catch(() => {}); // disconnected client: ignore
   }
-}, INTERVALLO_PUSH_MS);
-timerPush.unref();
-console.error(`[tempo-mcp] Server avviato (sessione iniziata: ${new Date(SESSION_START).toISOString()})`);
+}, PUSH_INTERVAL_MS);
+pushTimer.unref();
+console.error(`[tempo-mcp] Server started (session started: ${new Date(SESSION_START).toISOString()})`);

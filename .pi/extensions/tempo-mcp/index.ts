@@ -16,7 +16,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { join } from "node:path";
 
-const URI_ADESSO = "tempo://adesso";
+const URI_ADESSO = "tempo://now";
 const INTERVALLO_STATUS_MS = 30_000;
 
 export default function (pi: ExtensionAPI) {
@@ -83,8 +83,8 @@ export default function (pi: ExtensionAPI) {
           const testo = await leggiAdesso();
           if (!testo) return;
           try {
-            const p = JSON.parse(testo) as { data_leggibile?: string; ora_leggibile?: string };
-            ctx.ui.setStatus("tempo-mcp", `🕐 ${p.data_leggibile ?? ""} ${p.ora_leggibile ?? ""}`.trim());
+            const p = JSON.parse(testo) as { readable_date?: string; readable_time?: string };
+            ctx.ui.setStatus("tempo-mcp", `🕐 ${p.readable_date ?? ""} ${p.readable_time ?? ""}`.trim());
           } catch {
             ctx.ui.setStatus("tempo-mcp", testo);
           }

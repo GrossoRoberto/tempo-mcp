@@ -1,26 +1,26 @@
 # tempo-mcp Wiki
 
-Documentazione di progetto del server MCP **tempo-mcp**: il ponte tra il tempo umano e il tempo macchina per gli LLM.
+Project documentation for the **tempo-mcp** MCP server: the bridge between human time and machine time for LLMs.
 
-## Visione
+## Vision
 
-Gli umani ragionano per connettori temporali fuzzy (*"ieri"*, *"la settimana scorsa"*, *"qualche giorno fa"*). Gli LLM ragionano per intervalli assoluti, ma non hanno accesso al tempo reale. tempo-mcp risolve il problema da due lati:
+Humans reason with fuzzy temporal connectors (*"yesterday"*, *"last week"*, *"a few days ago"*). LLMs reason with absolute intervals, but have no access to real time. tempo-mcp solves the problem from both sides:
 
-1. **Marcatura**: l'LLM viene istruito a prefissare ogni risposta con il timestamp `YYYY/MM/DD HH:MM:SS` → la conversazione diventa una linea temporale navigabile.
-2. **Ancoraggio**: il server fornisce sempre data/ora reali (fuso del PC), via risorsa in contesto o tool.
+1. **Timestamping**: the LLM is instructed to prefix every response with the `YYYY/MM/DD HH:MM:SS` timestamp → the conversation becomes a navigable timeline.
+2. **Anchoring**: the server always provides the real date/time (PC timezone), via an in-context resource or tools.
 
-Risultato: *"cerca il codice che abbiamo usato ieri"* → l'LLM confronta i timestamp della chat con l'intervallo di ieri. Nessun database: il tempo vive nel testo della conversazione.
+Result: *"find the code we used yesterday"* → the LLM compares the chat timestamps with yesterday's interval. No database: time lives in the conversation text.
 
-## Indice
+## Index
 
-- [Architettura](Architettura.md) — componenti e flussi
-- [Strumenti](Strumenti.md) — riferimento tool e risorse MCP
-- [Estensione pi](Estensione-pi.md) — il ponte per pi-coding-agent
-- [Distribuzione](Distribuzione.md) — GitHub, npm, installazione one-liner
-- [Decisioni](Decisioni.md) — registro delle decisioni (e delle idee scartate)
-- [Diario di sviluppo](Diario.md) — cronologia del lavoro
-- [Roadmap](Roadmap.md) — cosa c'è dopo
+- [Architecture](Architecture.md) — components and flows
+- [Tools](Tools.md) — MCP tools and resource reference
+- [pi extension](Pi-extension.md) — the bridge for pi-coding-agent
+- [Distribution](Distribution.md) — GitHub, npm, one-liner installation
+- [Decisions](Decisions.md) — decision log (and discarded ideas)
+- [Development diary](Diary.md) — work history
+- [Roadmap](Roadmap.md) — what's next
 
-## Stato attuale
+## Current status
 
-✅ Server MCP funzionante (stdio) · ✅ 11/11 smoke test · ✅ Estensione ponte per pi testata end-to-end · ⏳ Pubblicazione GitHub/npm
+✅ Working MCP server (stdio) · ✅ 11/11 smoke tests · ✅ pi bridge extension tested end-to-end · ✅ Published on GitHub · ⏳ npm publish · ⏳ Testing on other harnesses (so far tested **only with pi-coding-agent**)
