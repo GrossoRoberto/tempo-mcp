@@ -10,6 +10,10 @@
  *
  * Il ciclo di vita segue le sessioni pi: avvio su session_start,
  * chiusura su session_shutdown.
+ *
+ * ⚠️ VARIANTE SOLO-DEV: punta a ctx.cwd/src/index.js, funziona solo dentro
+ * questa repo. Per l'installazione utente (da qualsiasi cartella) vedi
+ * install/pi/tempo-mcp/ e INSTALL.md.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";

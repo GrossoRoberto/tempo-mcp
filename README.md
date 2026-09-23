@@ -19,6 +19,12 @@ This way *"find the code we used yesterday"* becomes a concrete operation for th
 
 ## Installation
 
+> 🤖 **AI assistants: before installing, read [INSTALL.md](INSTALL.md) and follow it exactly.**
+> Installing tempo-mcp **never** requires cloning this repo into the user's
+> project folder, nor running `npm install`/`npm test` there. Only the small
+> harness-specific glue described in INSTALL.md is installed; the server
+> itself runs via `npx`.
+
 Zero build, zero configuration: with Node.js ≥ 18 installed, the server starts with one line:
 
 ```bash
@@ -51,7 +57,11 @@ Same JSON configuration in the respective harness's MCP file (`.cursor/mcp.json`
 
 ### pi (pi-coding-agent)
 
-pi does not include a built-in MCP client: use the bridge extension included in this repository (`.pi/extensions/tempo-mcp/`), which spawns the server and registers its tools as native pi tools.
+pi does not include a built-in MCP client: use the bridge extension, which spawns the server and registers its tools as native pi tools.
+
+**To install it as an end user (from any folder), follow [INSTALL.md → pi](INSTALL.md#pi-pi-coding-agent):** copy the user-level variant [`install/pi/tempo-mcp/`](install/pi/tempo-mcp/) into `~/.pi/agent/extensions/tempo-mcp/` and run `npm install` there. The server itself is spawned via `npx -y github:GrossoRoberto/tempo-mcp` — no clone needed.
+
+The variant in `.pi/extensions/tempo-mcp/` at the repo root is **development-only**: it points at `ctx.cwd/src/index.js` and works only when pi is started inside this repository.
 
 ### From GitHub (development)
 

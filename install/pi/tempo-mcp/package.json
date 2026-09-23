@@ -1,0 +1,9 @@
+{
+  "name": "pi-extension-tempo-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "pi bridge extension for the tempo-mcp server (user-level install, see INSTALL.md)",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0"
+  }
+}

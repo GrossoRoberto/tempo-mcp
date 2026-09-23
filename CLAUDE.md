@@ -23,7 +23,9 @@ This project is an MCP server that gives LLMs real-time awareness. When the
 
 - `src/index.js` — the MCP server (pure ESM JavaScript, no build step)
 - `test/smoke.test.js` — protocol smoke tests (`npm test`), must stay 11/11 ✅
-- `.pi/extensions/tempo-mcp/index.ts` — bridge extension for pi-coding-agent
+- `.pi/extensions/tempo-mcp/index.ts` — bridge extension for pi-coding-agent (dev-only: points at `ctx.cwd/src/index.js`)
+- `install/pi/tempo-mcp/` — user-level variant of the bridge (spawns the server via `npx`); keep it in sync with the dev variant when the bridge logic changes
+- `INSTALL.md` — end-user install guide, written AI-first: sessions asked to "install tempo-mcp" from other folders must follow it (no clone, no npm install in the user's project)
 - `wiki/` — project documentation (architecture, decisions, roadmap)
 
 ## Conventions
