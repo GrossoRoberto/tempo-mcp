@@ -5,3 +5,4 @@ Thumbs.db
 .env
 dist/
 coverage/
+pi-session-*.html

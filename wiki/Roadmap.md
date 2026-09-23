@@ -5,7 +5,8 @@
 - [x] English API (tool names, parameters, output fields) and English documentation
 - [ ] CI with GitHub Actions (`npm test` on Node 18/20/22, Linux/Windows/macOS)
 - [ ] `npm publish` (check the name `tempo-mcp`)
-- [ ] Test on other real harnesses: Claude Desktop, Cursor — **so far tested only with pi-coding-agent**
+- [x] Claude Desktop test (2026-09-23): server/tools and timestamp prefix work with the rule added to Claude project/profile instructions
+- [ ] Test on other real harnesses: Cursor
 
 ## Medium term
 - [ ] pi extension as an installable package (`pi install npm:tempo-mcp`) spawning `npx tempo-mcp` instead of the local path

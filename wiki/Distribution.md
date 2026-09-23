@@ -34,10 +34,10 @@ Typical harness configuration (Claude Desktop, Cursor, VS Code, ...):
 | Harness | Status |
 |---------|--------|
 | **pi (pi-coding-agent)** | ✅ **Tested end-to-end** — bridge extension in the repo; future pi package (`pi install npm:tempo-mcp`) |
-| Claude Desktop | ⚠️ Standard JSON config documented, **not yet tested** |
+| Claude Desktop | ✅ **Tested (2026-09-23)** — server/tools and `current_time` work; timestamp prefix verified with the rule added to Claude profile/project instructions |
 | Cursor / VS Code | ⚠️ Standard JSON config documented, **not yet tested** |
 
-> ⚠️ **As of 2026-09-21, tempo-mcp has been tested only with pi-coding-agent.** The stdio transport is universal, so other harnesses are expected to work, but they still need real-world verification.
+> ⚠️ **As of 2026-09-23, pi-coding-agent is tested end-to-end.** Claude Desktop is verified when the timestamp-prefix rule is added to Claude profile/project instructions; MCP `instructions` alone may not enforce the prefix. Cursor/VS Code still need real-world verification.
 
 ## Future idea: automatic installer
 

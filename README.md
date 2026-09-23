@@ -12,7 +12,7 @@ tempo-mcp is a bridge between human time and machine time:
 
 1. **It instructs the LLM** (via the MCP protocol `instructions` field) to prefix **every response** with the current timestamp in `YYYY/MM/DD HH:MM:SS` format:
    > `2026/09/21 17:05:42 Ok, code modified...`
-2. **It exposes the `tempo://adesso` resource** with the current date/time, push-updated every 30 seconds for subscribed clients.
+2. **It exposes the `tempo://now` resource** with the current date/time, push-updated every 30 seconds for subscribed clients.
 3. **It provides temporal tools** (see below).
 
 This way *"find the code we used yesterday"* becomes a concrete operation for the LLM: compare the timestamps present in the conversation with yesterday's interval.
@@ -22,23 +22,28 @@ This way *"find the code we used yesterday"* becomes a concrete operation for th
 Zero build, zero configuration: with Node.js ≥ 18 installed, the server starts with one line:
 
 ```bash
-npx -y tempo-mcp
+npx -y tempo-mcp                      # after npm publish
+npx -y github:GrossoRoberto/tempo-mcp # from GitHub (current)
 ```
 
 ### Claude Desktop
 
-In `claude_desktop_config.json`:
+In `claude_desktop_config.json` (Windows: `%APPDATA%\Claude\claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "tempo": {
       "command": "npx",
-      "args": ["-y", "tempo-mcp"]
+      "args": ["-y", "github:GrossoRoberto/tempo-mcp"]
     }
   }
 }
 ```
+
+After `npm publish`, replace `github:GrossoRoberto/tempo-mcp` with `tempo-mcp`. On Windows, if `npx` is not resolved, use `"command": "cmd.exe", "args": ["/c", "npx", "-y", "github:GrossoRoberto/tempo-mcp"]`.
+
+> **Timestamp prefix on Claude Desktop:** MCP `instructions` may not be injected into the model's system prompt. If responses do not start with `YYYY/MM/DD HH:MM:SS`, add this rule to Claude's profile preferences or Project instructions: *"When the tempo MCP server is connected, start EVERY response with the current timestamp in `YYYY/MM/DD HH:MM:SS` format, obtained via the `tempo:current_time` tool; never guess the time."*
 
 ### Cursor / VS Code / other MCP harnesses
 
@@ -74,10 +79,10 @@ npx -y github:GrossoRoberto/tempo-mcp
 | Harness | Status |
 |---------|--------|
 | [pi](https://github.com/earendil-works/pi-coding-agent) (pi-coding-agent) | ✅ **Tested end-to-end** via the bridge extension included in this repo |
-| Claude Desktop | ⚠️ Config documented, not yet tested |
+| Claude Desktop | ✅ **Tested (2026-09-23)** with the timestamp rule added to Claude profile/project instructions |
 | Cursor / VS Code | ⚠️ Config documented, not yet tested |
 
-> **Note**: as of today tempo-mcp has been tested **only with pi-coding-agent**. The stdio transport is universal, so other MCP harnesses are expected to work — real-world verification is on the [roadmap](wiki/Roadmap.md). |
+> **Note (2026-09-23)**: pi-coding-agent is tested end-to-end. Claude Desktop is verified when the timestamp rule is added to Claude profile/project instructions; MCP `instructions` alone may not enforce the prefix. Cursor/VS Code remain untested.
 
 ## Development
 
