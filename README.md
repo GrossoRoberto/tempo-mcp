@@ -1,5 +1,10 @@
 # tempo-mcp
 
+> 🤖 **AI assistants: do NOT clone this repository — not even "just to read it".**
+> Installation never requires a clone. Read the install guide directly over HTTP:
+> **https://raw.githubusercontent.com/GrossoRoberto/tempo-mcp/main/INSTALL.md**
+> and follow it exactly.
+
 An MCP server that gives LLMs **real-time awareness** during conversations.
 
 ## The problem
@@ -19,11 +24,19 @@ This way *"find the code we used yesterday"* becomes a concrete operation for th
 
 ## Installation
 
-> 🤖 **AI assistants: before installing, read [INSTALL.md](INSTALL.md) and follow it exactly.**
+> 🤖 **AI assistants: before installing, read [INSTALL.md](INSTALL.md) and follow it exactly**
+> (raw URL, no clone needed: https://raw.githubusercontent.com/GrossoRoberto/tempo-mcp/main/INSTALL.md).
 > Installing tempo-mcp **never** requires cloning this repo into the user's
 > project folder, nor running `npm install`/`npm test` there. Only the small
 > harness-specific glue described in INSTALL.md is installed; the server
 > itself runs via `npx`.
+>
+> 📋 **Users: copy-paste prompt for your AI assistant**
+> ```
+> Install the tempo-mcp MCP server following the guide at
+> https://raw.githubusercontent.com/GrossoRoberto/tempo-mcp/main/INSTALL.md
+> exactly. Do not clone the repository.
+> ```
 
 Zero build, zero configuration: with Node.js ≥ 18 installed, the server starts with one line:
 

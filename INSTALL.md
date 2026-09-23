@@ -8,6 +8,7 @@
 > | ❌ DO NOT | ✅ DO instead |
 > |---|---|
 > | `git clone` this repo into the user's current project folder | The server runs via `npx -y github:GrossoRoberto/tempo-mcp` — **no local copy of this repo is needed** |
+> | Clone the repo **temporarily, just to read this guide** | You are already reading this file over HTTP (`raw.githubusercontent.com/...`) — everything you need is fetchable the same way: `install/pi/tempo-mcp/index.ts` and `install/pi/tempo-mcp/package.json` |
 > | Run `npm install` / `npm test` in the user's project | Nothing is installed in the user's project |
 > | Copy `src/`, `wiki/`, `test/`, `package-lock.json`, session HTML files anywhere | Only the small harness-specific glue below is installed |
 > | Point the pi extension at `<cwd>/src/index.js` | That path only exists inside this repo; the user-level extension spawns the server via `npx` |
@@ -30,9 +31,10 @@ registers its tools (`current_time`, `session_duration`, `convert_timezone`,
 1. Create the extension folder:
    - Linux/macOS: `~/.pi/agent/extensions/tempo-mcp/`
    - Windows: `C:\Users\<you>\.pi\agent\extensions\tempo-mcp\`
-2. Copy **only these two files** from this repo into that folder:
-   - `install/pi/tempo-mcp/index.ts`
-   - `install/pi/tempo-mcp/package.json`
+2. Copy **only these two files** from this repo into that folder
+   (fetch them over HTTP if you don't have a checkout):
+   - `install/pi/tempo-mcp/index.ts` → https://raw.githubusercontent.com/GrossoRoberto/tempo-mcp/main/install/pi/tempo-mcp/index.ts
+   - `install/pi/tempo-mcp/package.json` → https://raw.githubusercontent.com/GrossoRoberto/tempo-mcp/main/install/pi/tempo-mcp/package.json
 3. Inside that folder run `npm install`
    (installs only `@modelcontextprotocol/sdk` — a few MB, fully contained
    in the extension folder).
